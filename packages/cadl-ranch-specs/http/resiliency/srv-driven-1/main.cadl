@@ -1,0 +1,103 @@
+import "@cadl-lang/rest";
+import "@azure-tools/cadl-ranch-expect";
+
+@serviceTitle("DPGClient")
+@serviceVersion("1.0.0")
+@server("http://localhost:3000", "Testserver endpoint")
+@doc("DPG Swagger, this is the initial swagger a service could do")
+@Cadl.Rest.produces("application/json")
+@Cadl.Rest.consumes("application/json")
+namespace Cadl.Testserver;
+using Cadl.Http;
+
+model PostInput {
+  url: string;
+}
+
+model Message {
+  message: string;
+}
+
+@doc("Answer from service")
+model MessageResponse {
+  @statusCode statusCode: 200;
+  @body body: Message;
+}
+
+@route("/serviceDriven")
+interface params {
+  @scenario
+  @scenarioDoc("""
+Show that you can call a HEAD HTTP endpoint.
+This test is expected to grow to a new optional parameter while keeping backward compat in srv-driven-2.
+""")
+  @route("/parameters")
+  @doc("Head request, no params.\n Initially has no query parameters. After evolution, a new optional query parameter is added")
+  @head
+  headNoParams(): {
+    @statusCode statusCode: 200;
+  };
+
+  @scenario
+  @scenarioDoc("""
+Show that you can call a GET HTTP endpoint.
+This test is expected to grow to a new optional parameter while keeping backward compat in srv-driven-2.
+""")
+  @route("/parameters")
+  @doc("Get true Boolean value on path.\n Initially only has one required Query Parameter. After evolution, a new optional query parameter is added")
+  @get
+  getRequired(
+    @doc("I am a required parameter")
+    @query
+    parameter: string
+  ): MessageResponse;
+
+  @scenario
+  @scenarioDoc("""
+Show that you can call a PUT HTTP endpoint.
+This test is expected to grow to a new optional parameter while keeping backward compat in srv-driven-2.
+The value you pass for the parameter is not verified by the mock server.
+""")
+  @route("/parameters")
+  @doc("Initially has one required query parameter and one optional query parameter.  After evolution, a new optional query parameter is added")
+  @put
+  putRequiredOptional(
+    @doc("I am a required parameter")
+    @query
+    requiredParam: string,
+
+    @doc("I am an optional parameter")
+    @query
+    optionalParam?: string
+  ): MessageResponse;
+
+  @scenario
+  @scenarioDoc("""
+Show that you can call a POST HTTP endpoint.
+This test is expected to grow to a new content-type as acceptable input while keeping backward compat in srv-driven-2.
+Pass the JSON: `{"url": "http://example.org/myimage.jpeg"}`
+""")
+  @route("/parameters")
+  @doc("POST a JSON")
+  @post
+  postParameters(
+    @doc("I am a body parameter. My only valid JSON entry is { url: \"http://example.org/myimage.jpeg\" }")
+    @body
+    parameter: PostInput
+  ): MessageResponse;
+
+  @scenario
+  @scenarioDoc("""
+Show that you can call a GET HTTP endpoint.
+This version has his main parameter optional first, making the grow-up story to two optionals.
+The value you pass for the parameter is not verified by the mock server.
+""")
+  @route("/moreParameters")
+  @doc("Get true Boolean value on path.\n Initially has one optional query parameter. After evolution, a new optional query parameter is added")
+  @get
+  getOptional(
+    @doc("I am an optional parameter")
+    @query
+    optionalParam?: string
+  ): MessageResponse;
+}

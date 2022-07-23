@@ -1,0 +1,120 @@
+import "@cadl-lang/rest";
+import "@cadl-lang/openapi";
+import "@azure-tools/cadl-azure-core";
+import "@azure-tools/cadl-ranch-expect";
+
+using Azure.Core.Operations;
+
+@serviceTitle("DPGClient")
+@serviceVersion("1.0.0")
+@server("http://localhost:3000", "Testserver endpoint")
+@doc("DPG Swagger that tests our ability to grow up.")
+@Cadl.Rest.produces("application/json")
+@Cadl.Rest.consumes("application/json")
+namespace Cadl.Testserver;
+using Cadl.Http;
+
+@doc("The mode with which you'll be handling your returned body. 'raw' for just dealing with the raw body, and 'model' if you are going to convert the raw body to a customized body before returning to users.")
+model ModeParameter {
+  @OpenAPI.extension("x-ms-parameter-location", "method")
+  @OpenAPI.extension("x-ms-skip-url-encoding", true)
+  @doc("The mode with which you'll be handling your returned body. 'raw' for just dealing with the raw body, and 'model' if you are going to convert the raw body to a customized body before returning to users.")
+  @path
+  mode: Mode;
+}
+
+enum Mode {
+  "raw",
+  "model",
+}
+
+model Product {
+  received: Mode;
+}
+
+@doc("Returns {'received': <mode>}")
+model ProductResponse {
+  @statusCode statusCode: 200;
+  @body body: Product;
+}
+
+model Input {
+  hello: string;
+}
+
+model LROProduct extends Product {
+  provisioningState: string;
+}
+
+@doc("Initial response with ProvisioningState='Succeeded'")
+model LROProductResponse {
+  @statusCode statusCode: 200;
+  @body body: LROProduct;
+}
+
+@scenario
+@scenarioDoc("""
+Show that you can support both protocol methods and convenience method for a HTTP GET.
+This method requires to write 2 tests.
+- Test 1 is a call with "raw" and confirm you can read a JSON `{"received": "raw"}`
+- Test 2 varies:
+  - With DPG 1.0, write your own model to parse `{"received": "model"}`
+  - With DPG 2.0, generate the convenience method to read Product model with "received" to "model"
+""")
+@route("/customization/model/{mode}")
+@doc("Get models that you will either return to end users as a raw body, or with a model added during grow up.")
+@OpenAPI.operationId("getModel") // Do NOT read this from your CADL emitter, this is here only for Swagger generation accuracy
+@get
+op getModel(...ModeParameter): ProductResponse;
+
+@scenario
+@scenarioDoc("""
+Show that you can support both protocol methods and convenience method for a HTTP POST.
+This method requires to write 2 tests.
+- Test 1 is a call with "raw" with body `{"hello": "world!"}` and confirm you can read a JSON `{"received": "raw"}`
+- Test 2 varies:
+  - With DPG 1.0, write a model Input("world!"), serialize to input write your own model to parse `{"received": "model"}`
+  - With DPG 2.0, generate the convenience method to pass Input("world!") and read Product model with "received" to "model"
+""")
+@scenario
+@route("/customization/model/{mode}")
+@doc("Post either raw response as a model and pass in 'raw' for mode, or grow up your operation to take a model instead, and put in 'model' as mode. ")
+@OpenAPI.operationId("postModel") // Do NOT read this from your CADL emitter, this is here only for Swagger generation accuracy
+@post
+op postModel(
+  ...ModeParameter,
+
+  @doc("Please put {'hello': 'world!'}")
+  @body
+  input: Input
+): ProductResponse;
+
+@scenario
+@scenarioDoc("""
+Show that you can support both protocol methods and convenience method for a Paging operation.
+This method requires to write 2 tests.
+- Test 1 is a call with "raw" and confirm you can read a JSON `{"received": "raw"}` on page 2.
+- Test 2 varies:
+  - With DPG 1.0, iterate to page 2 and write your own model to parse `{"received": "model"}`
+  - With DPG 2.0, generate the convenience method to read Product model with "received" to "model" on page 2
+""")
+@route("/customization/paging/{mode}")
+@doc("Get pages that you will either return to users in pages of raw bodies, or pages of models following growup.")
+@OpenAPI.operationId("getPages") // Do NOT read this from your CADL emitter, this is here only for Swagger generation accuracy
+op getPages is ResourceList<Product, ModeParameter>;
+
+// Make me LRO https://github.com/Azure/cadl-azure/issues/1656
+@scenario
+@scenarioDoc("""
+Show that you can support both protocol methods and convenience method for a LRO.
+This method requires to write 2 tests.
+- Test 1 is a call with "raw" and confirm you can read a JSON `{"received": "raw"}` as final result.
+- Test 2 varies:
+  - With DPG 1.0, poll to final state and write your own model to parse `{"received": "model"}`
+  - With DPG 2.0, generate the convenience method to poll a Product model with "received" to "model"
+""")
+@route("/customization/lro/{mode}")
+@doc("Long running put request that will either return to end users a final payload of a raw body, or a final payload of a model after the SDK has grown up.")
+@OpenAPI.operationId("lro") // Do NOT read this from your CADL emitter, this is here only for Swagger generation accuracy
+@put
+op lro(...ModeParameter): LROProductResponse;
